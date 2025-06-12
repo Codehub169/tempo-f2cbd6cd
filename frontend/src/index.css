@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply font-sans text-clinic-text bg-clinic-background leading-relaxed antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-display text-clinic-primary mb-3 leading-tight;
+}
+
+h1 {
+  @apply text-4xl md:text-5xl;
+}
+
+h2 {
+  @apply text-3xl md:text-4xl;
+}
+
+h3 {
+  @apply text-2xl md:text-3xl;
+}
+
+h4 {
+  @apply text-xl md:text-2xl;
+}
+
+p {
+  @apply mb-4 text-clinic-text-light;
+}
+
+a {
+  @apply text-clinic-accent hover:text-clinic-accent-dark transition-colors duration-300;
+}
+
+.container {
+  @apply w-11/12 max-w-6xl mx-auto px-4;
+}
+
+/* Base button styles - can be extended in components */
+.btn {
+  @apply inline-block py-3 px-7 text-base font-medium text-center rounded-lg cursor-pointer transition-all duration-300 ease-in-out no-underline;
+}
+
+.btn-primary {
+  @apply bg-clinic-primary text-white hover:bg-clinic-primary-dark hover:shadow-lg transform hover:-translate-y-0.5;
+}
+
+.btn-accent {
+  @apply bg-clinic-accent text-white hover:bg-clinic-accent-dark hover:shadow-lg transform hover:-translate-y-0.5;
+}
+
+.btn-outline-primary {
+  @apply bg-transparent text-clinic-primary border-2 border-clinic-primary hover:bg-clinic-primary hover:text-white;
+}
+
+.btn-outline-white {
+  @apply bg-transparent text-white border-2 border-white hover:bg-white hover:text-clinic-primary;
+}
+
+.page-section {
+  @apply py-16;
+}
+
+.page-section.bg-light {
+  @apply bg-clinic-light-gray;
+}
+
+.section-header {
+  @apply text-center mb-12;
+}
+
+.section-header h2 {
+  @apply text-4xl mb-2;
+}
+
+.section-header .subtitle {
+  @apply text-lg text-clinic-text-light max-w-2xl mx-auto;
+}
+
+.card {
+  @apply bg-clinic-background rounded-lg shadow-custom-card overflow-hidden transition-transform duration-300 ease-in-out flex flex-col;
+}
+
+.card:hover {
+  @apply transform -translate-y-1 shadow-custom-card-hover;
+}
+
+.card-image img {
+  @apply w-full h-52 object-cover;
+}
+
+.card-content {
+  @apply p-6 flex-grow flex flex-col;
+}
+
+.card-content h3 {
+  @apply mt-0 text-2xl;
+}
+
+.card-content p {
+  @apply text-sm flex-grow mb-4;
+}
+
+.card-actions {
+  @apply mt-auto pt-4;
+}
+
+.card-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8;
+}
+
+*:focus-visible {
+  @apply outline-offset-2 outline-2 outline-clinic-accent;
+}
