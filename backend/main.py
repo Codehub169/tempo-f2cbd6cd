@@ -1,203 +1,231 @@
-from fastapi import FastAPI, Depends, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
-from datetime import date, datetime
-import json
+from fastapi.staticfiles import StaticFiles # Import StaticFiles
+from pydantic import BaseModel, EmailStr, validator
+from typing import List, Optional, Dict
+from datetime import date, time, datetime, timedelta # Added timedelta
+import os # For path joining
 
-from . import crud, models, database # schemas are defined here for simplicity
-from .database import SessionLocal, engine, get_db, create_db_and_tables
+# --- Database Setup (Mock for now, replace with actual SQLite connection later) ---
+# This section will be replaced by database interactions using models.py and database.py
+# For MVP, using in-memory data that mimics database structure.
 
-# Pydantic Schemas (moved from a separate schemas.py for this batch)
-from pydantic import BaseModel, EmailStr
+# Mock Data (Replace with actual database calls)
+SERVICES_DB = [
+    {"id": 1, "name": "Comprehensive Eye Examination", "description": "Full check-up including vision tests, glaucoma screening, and retina examination.", "detailed_description": "Our comprehensive eye examination is a thorough assessment of your vision and eye health. It includes a detailed patient history, visual acuity testing, refraction to determine your prescription, eye muscle coordination tests, peripheral vision screening, intraocular pressure measurement (for glaucoma), and a dilated fundus examination to check the health of your retina and optic nerve. Regular exams are crucial for early detection of eye diseases.", "icon_svg_content": "<svg>...</svg>", "image_url": "https://via.placeholder.com/800x400.png?text=Eye+Exam", "what_to_expect": ["Discussion of your medical history and vision concerns.", "Series of vision tests.", "Eye health evaluation, possibly with pupil dilation.", "Personalized advice and prescription if needed."], "benefits": ["Detects eye diseases early.", "Ensures accurate vision correction.", "Provides peace of mind about your eye health."]},
+    {"id": 2, "name": "Cataract Surgery Consultation", "description": "Evaluation and consultation for cataract surgery, including IOL options.", "detailed_description": "If you suspect you have cataracts or have been diagnosed, this consultation provides a complete evaluation. We discuss your symptoms, perform specialized tests to assess the cataract's impact on your vision, and explain the surgical procedure in detail. We also cover various intraocular lens (IOL) options to best suit your lifestyle and visual needs post-surgery.", "icon_svg_content": "<svg>...</svg>", "image_url": "https://via.placeholder.com/800x400.png?text=Cataract+Consult", "what_to_expect": ["Detailed eye examination focusing on cataracts.", "Discussion of surgical options and IOLs.", "Pre-operative measurements and planning.", "Opportunity to ask all your questions."], "benefits": ["Clear understanding of your condition.", "Personalized treatment plan.", "Information on restoring clear vision."]},
+    {"id": 3, "name": "Glaucoma Management", "description": "Diagnosis, treatment, and long-term management of glaucoma.", "detailed_description": "Glaucoma is a serious condition that can lead to irreversible blindness if not managed. Our glaucoma service includes advanced diagnostic tests like OCT scans and visual field testing. We offer medical, laser, and surgical treatments tailored to control intraocular pressure and preserve vision. Ongoing monitoring is key to managing glaucoma effectively.", "icon_svg_content": "<svg>...</svg>", "image_url": "https://via.placeholder.com/800x400.png?text=Glaucoma+Care", "what_to_expect": ["Comprehensive glaucoma testing.", "Personalized treatment plan (eye drops, laser, or surgery).", "Regular follow-up appointments to monitor progress."], "benefits": ["Early detection and intervention.", "Preservation of existing vision.", "Long-term management strategy."]},
+    {"id": 4, "name": "Retina and Vitreous Services", "description": "Care for conditions like diabetic retinopathy and macular degeneration.", "detailed_description": "Our retina specialists manage a wide array of conditions affecting the back of the eye, including diabetic retinopathy, macular degeneration, retinal detachments, and uveitis. We utilize advanced imaging and offer treatments such as intravitreal injections, laser therapy, and vitreoretinal surgery.", "icon_svg_content": "<svg>...</svg>", "image_url": "https://via.placeholder.com/800x400.png?text=Retina+Services", "what_to_expect": ["Specialized retinal imaging (OCT, FFA).", "Thorough diagnosis and explanation of condition.", "Discussion of treatment options (injections, laser, surgery)."], "benefits": ["Expert care for complex retinal conditions.", "Access to advanced treatment modalities.", "Focus on preserving and improving vision."]}
+]
 
-# Base and Create Schemas
-class ServiceBase(BaseModel):
-    name: str
-    description: Optional[str] = None
-    image_url: Optional[str] = None
-    icon_svg_content: Optional[str] = None
-    detailed_description: Optional[str] = None
-    what_to_expect: Optional[str] = None
-    benefits: Optional[str] = None
+DOCTORS_DB = [
+    {"id": 1, "name": "Dr. Priya Sharma", "specialty": "Chief Ophthalmologist<br>Cataract & Refractive Surgeon", "bio": "Dr. Priya Sharma is a renowned ophthalmologist with over 15 years of experience specializing in advanced cataract surgery and laser vision correction. She is committed to providing patient-centered care and utilizing the latest surgical techniques.\n\nShe completed her medical degree from AIIMS, New Delhi, and pursued further specialization in ophthalmology. Dr. Sharma is an active member of several national and international ophthalmological societies and frequently presents at conferences.", "image_url": "https://via.placeholder.com/400x400.png?text=Dr.+Priya+Sharma", "areas_of_focus": ["Advanced Cataract Surgery", "LASIK & Refractive Surgery", "Corneal Diseases"], "clinic_hours": {"Mon": "10 AM - 1 PM", "Wed": "2 PM - 5 PM", "Fri": "10 AM - 1 PM"}, "achievements": ["Gold Medalist in MS Ophthalmology", "Published 20+ research papers", "Performed over 5000 successful cataract surgeries"]},
+    {"id": 2, "name": "Dr. Arjun Verma", "specialty": "Glaucoma & Retina Specialist", "bio": "Dr. Arjun Verma is a distinguished specialist in the diagnosis and management of glaucoma and various retinal disorders, including diabetic retinopathy and macular degeneration. He believes in a proactive approach to preserve vision.\n\nDr. Verma earned his credentials from a top medical college in India and completed fellowships in Glaucoma and Vitreoretinal surgery. He is known for his meticulous approach and dedication to his patients.", "image_url": "https://via.placeholder.com/400x400.png?text=Dr.+Arjun+Verma", "areas_of_focus": ["Glaucoma Diagnosis & Management", "Diabetic Retinopathy", "Macular Degeneration", "Retinal Laser Therapy"], "clinic_hours": {"Tue": "9 AM - 12 PM", "Thu": "3 PM - 6 PM", "Sat": "9 AM - 12 PM"}, "achievements": ["Best Paper Award at National Retina Conclave", "Pioneer in minimally invasive glaucoma surgery techniques in the region"]},
+    {"id": 3, "name": "Dr. Ananya Reddy", "specialty": "Pediatric Ophthalmologist<br>Squint Specialist", "bio": "Dr. Ananya Reddy focuses on eye care for children, addressing conditions such as refractive errors, amblyopia (lazy eye), and strabismus (squint). She has a gentle and patient-friendly approach, making children comfortable during examinations.\n\nShe is passionate about early intervention for pediatric eye conditions to ensure healthy visual development.", "image_url": "https://via.placeholder.com/400x400.png?text=Dr.+Ananya+Reddy", "areas_of_focus": ["Pediatric Eye Exams", "Amblyopia Treatment", "Strabismus Surgery", "Childhood Myopia Control"], "clinic_hours": {"Mon": "2 PM - 5 PM", "Wed": "9 AM - 12 PM", "Fri": "2 PM - 5 PM"}, "achievements": ["Community Service Award for Pediatric Eye Camps", "Authored chapters in pediatric ophthalmology textbooks"]}
+]
 
-class ServiceCreate(ServiceBase):
-    pass
+# Mock Bookings (to simulate existing appointments for availability checks)
+BOOKINGS_DB = [
+    {"booking_id": 1, "doctor_id": 1, "appointment_date": "2024-09-15", "appointment_time": "10:00"},
+    {"booking_id": 2, "doctor_id": 1, "appointment_date": "2024-09-15", "appointment_time": "11:00"},
+    {"booking_id": 3, "doctor_id": 2, "appointment_date": "2024-09-16", "appointment_time": "14:30"},
+]
 
-class Service(ServiceBase):
+CONTACT_SUBMISSIONS_DB = []
+
+# --- Pydantic Models for Request/Response Validation ---
+class Service(BaseModel):
     id: int
-    class Config:
-        from_attributes = True
-
-class DoctorBase(BaseModel):
     name: str
-    specialty: Optional[str] = None
-    qualifications: Optional[str] = None
+    description: str
+    detailed_description: Optional[str] = None
+    icon_svg_content: Optional[str] = None
+    image_url: Optional[str] = None
+    what_to_expect: Optional[List[str]] = []
+    benefits: Optional[List[str]] = []
+
+class Doctor(BaseModel):
+    id: int
+    name: str
+    specialty: str
     bio: Optional[str] = None
     image_url: Optional[str] = None
-    areas_of_focus: Optional[List[str]] = [] # Stored as JSON string in DB, parsed to list here
-    achievements: Optional[List[str]] = []   # Stored as JSON string in DB, parsed to list here
-    clinic_hours: Optional[Dict[str, str]] = {} # Stored as JSON string in DB, parsed to dict here
-    # bio_excerpt: Optional[str] = None
-
-class DoctorCreate(DoctorBase):
-    pass
-
-class Doctor(DoctorBase):
-    id: int
-    class Config:
-        from_attributes = True
+    areas_of_focus: Optional[List[str]] = []
+    clinic_hours: Optional[Dict[str, str]] = {}
+    achievements: Optional[List[str]] = []
 
 class BookingBase(BaseModel):
     patient_name: str
     patient_phone: str
-    patient_email: Optional[EmailStr] = None
-    patient_symptoms: Optional[str] = None
+    patient_email: EmailStr
     service_id: Optional[int] = None
     doctor_id: Optional[int] = None
     appointment_date: date
-    appointment_time: str # e.g., "10:00 AM"
+    appointment_time: time # Using time type
+    patient_symptoms: Optional[str] = None
+
+    @validator('appointment_date')
+    def date_must_be_in_future(cls, value):
+        if value < date.today():
+            raise ValueError('Appointment date must be in the future.')
+        return value
 
 class BookingCreate(BookingBase):
     pass
 
-class Booking(BookingBase):
-    id: int
-    status: str
-    created_at: datetime
-    class Config:
-        from_attributes = True
+class BookingResponse(BookingBase):
+    booking_id: int
+    status: str = "Confirmed"
 
-class ContactMessageBase(BaseModel):
+class ContactSubmission(BaseModel):
     name: str
     email: EmailStr
     phone: Optional[str] = None
-    subject: Optional[str] = None
+    subject: str
     message: str
 
-class ContactMessageCreate(ContactMessageBase):
-    pass
-
-class ContactMessage(ContactMessageBase):
-    id: int
+class ContactSubmissionResponse(ContactSubmission):
+    submission_id: int
     submitted_at: datetime
-    class Config:
-        from_attributes = True
 
+# AvailableSlotQuery model - not explicitly used in endpoint params but good for reference
 class AvailableSlotQuery(BaseModel):
-    date: date
+    query_date: date
     service_id: Optional[int] = None
     doctor_id: Optional[int] = None
 
-# Create database tables on startup (if they don't exist)
-# In a production environment, you would use Alembic for migrations.
-create_db_and_tables()
+# --- FastAPI App Initialization ---
+app = FastAPI(
+    title="NayanJyoti Eye Clinic API",
+    description="API for managing clinic services, doctors, and appointments.",
+    version="1.0.0"
+)
 
-app = FastAPI(title="NayanJyoti Eye Clinic API", version="1.0.0")
-
-# CORS Middleware
+# --- CORS Middleware ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:9000", "http://127.0.0.1:9000"], # Adjust for your frontend URL
+    allow_origins=["http://localhost:9000", "http://127.0.0.1:9000"], # Allow frontend dev server on port 9000
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Sample Data Seeding (for MVP demonstration) ---
-@app.on_event("startup")
-def seed_data():
-    db = SessionLocal()
-    try:
-        # Check if services exist
-        if db.query(models.Service).count() == 0:
-            sample_services = [
-                schemas.ServiceCreate(name="Comprehensive Eye Exams", description="Regular eye check-ups for maintaining good eye health.", image_url="https://via.placeholder.com/400x250.png?text=Comprehensive+Eye+Exam", icon_svg_content="<svg>...</svg>", detailed_description="Detailed exam process...", what_to_expect="Expect a series of tests...", benefits="Early detection, vision correction."),
-                schemas.ServiceCreate(name="Cataract Surgery", description="Advanced, minimally invasive cataract surgery.", image_url="https://via.placeholder.com/400x250.png?text=Cataract+Surgery", detailed_description="Our cataract surgery uses...", what_to_expect="Pre-op, surgery, post-op...", benefits="Restored clear vision."),
-                schemas.ServiceCreate(name="LASIK & Refractive Surgery", description="Achieve freedom from glasses and contact lenses.", image_url="https://via.placeholder.com/400x250.png?text=LASIK", detailed_description="State-of-the-art LASIK...", what_to_expect="Consultation, procedure, recovery...", benefits="Vision correction without glasses."),
-                schemas.ServiceCreate(name="Glaucoma Treatment", description="Comprehensive management and treatment for glaucoma.", image_url="https://via.placeholder.com/400x250.png?text=Glaucoma+Treatment", detailed_description="Early diagnosis and treatment options for glaucoma.", what_to_expect="Regular monitoring, medication, or surgical options.", benefits="Preservation of sight by managing intraocular pressure."),
-                schemas.ServiceCreate(name="Pediatric Ophthalmology", description="Specialized eye care for children.", image_url="https://via.placeholder.com/400x250.png?text=Pediatric+Ophthalmology", detailed_description="Addressing vision problems in infants and children.", what_to_expect="Child-friendly exams and treatments.", benefits="Ensuring healthy vision development in children.")
-            ]
-            for service_in in sample_services:
-                crud.create_service(db=db, service=service_in)
-        
-        # Check if doctors exist
-        if db.query(models.Doctor).count() == 0:
-            sample_doctors = [
-                schemas.DoctorCreate(name="Dr. Ananya Sharma", specialty="MBBS, MS (Ophthalmology)<br>Specialist in Cataract & Refractive Surgery", qualifications="MS Ophthalmology", bio="Dr. Sharma is a leading expert...", image_url="https://via.placeholder.com/400x250.png?text=Dr.+Ananya+Sharma", areas_of_focus=["Cataract Surgery", "LASIK"], achievements=["Gold Medalist in MS", "Published 20+ papers"], clinic_hours={"Mon-Fri": "10 AM - 6 PM", "Sat": "10 AM - 2 PM"}),
-                schemas.DoctorCreate(name="Dr. Rohan Verma", specialty="MBBS, DNB (Ophthalmology)<br>Specialist in Glaucoma & Medical Retina", qualifications="DNB Ophthalmology", bio="Dr. Verma has extensive experience...", image_url="https://via.placeholder.com/400x250.png?text=Dr.+Rohan+Verma", areas_of_focus=["Glaucoma Management", "Retinal Diseases"], achievements=["Fellowship in Glaucoma", "Speaker at National Conferences"], clinic_hours={"Mon-Wed-Fri": "9 AM - 5 PM"}),
-                schemas.DoctorCreate(name="Dr. Priya Singh", specialty="MBBS, DO, FICO<br>Pediatric Ophthalmology & Strabismus Specialist", qualifications="DO, FICO", bio="Dr. Singh is dedicated to child eye care...", image_url="https://via.placeholder.com/400x250.png?text=Dr.+Priya+Singh", areas_of_focus=["Pediatric Eye Exams", "Strabismus Surgery"], achievements=["Award for Excellence in Pediatric Care"], clinic_hours={"Tue-Thu-Sat": "11 AM - 7 PM"})
-            ]
-            for doctor_in in sample_doctors:
-                crud.create_doctor(db=db, doctor=doctor_in)
-        print("Sample data seeded.")
-    except Exception as e:
-        print(f"Error seeding data: {e}")
-    finally:
-        db.close()
+# --- API Endpoints ---
 
-# API Endpoints
-@app.get("/api", tags=["Root"])
-async def read_root():
-    return {"message": "Welcome to NayanJyoti Eye Clinic API"}
+@app.get("/api/services", response_model=List[Service])
+async def get_all_services():
+    return SERVICES_DB
 
-# Services Endpoints
-@app.get("/api/services", response_model=List[Service], tags=["Services"])
-def read_services(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    services = crud.get_services(db, skip=skip, limit=limit)
-    return [schemas.Service(**crud.model_to_dict(s, schemas.Service)) for s in services]
-
-@app.get("/api/services/{service_id}", response_model=Service, tags=["Services"])
-def read_service(service_id: int, db: Session = Depends(get_db)):
-    db_service = crud.get_service(db, service_id=service_id)
-    if db_service is None:
+@app.get("/api/services/{service_id}", response_model=Service)
+async def get_service_by_id(service_id: int):
+    service = next((s for s in SERVICES_DB if s["id"] == service_id), None)
+    if not service:
         raise HTTPException(status_code=404, detail="Service not found")
-    return schemas.Service(**crud.model_to_dict(db_service, schemas.Service))
+    return service
 
-# Doctors Endpoints
-@app.get("/api/doctors", response_model=List[Doctor], tags=["Doctors"])
-def read_doctors(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    doctors = crud.get_doctors(db, skip=skip, limit=limit)
-    # Manually parse JSON fields for response model if not automatically handled by Pydantic v2 from_attributes
-    # This is now handled by model_to_dict and Pydantic schema
-    return [schemas.Doctor(**crud.model_to_dict(doc, schemas.Doctor)) for doc in doctors]
+@app.get("/api/doctors", response_model=List[Doctor])
+async def get_all_doctors():
+    return DOCTORS_DB
 
-@app.get("/api/doctors/{doctor_id}", response_model=Doctor, tags=["Doctors"])
-def read_doctor(doctor_id: int, db: Session = Depends(get_db)):
-    db_doctor = crud.get_doctor(db, doctor_id=doctor_id)
-    if db_doctor is None:
+@app.get("/api/doctors/{doctor_id}", response_model=Doctor)
+async def get_doctor_by_id(doctor_id: int):
+    doctor = next((d for d in DOCTORS_DB if d["id"] == doctor_id), None)
+    if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
-    return schemas.Doctor(**crud.model_to_dict(db_doctor, schemas.Doctor))
+    return doctor
 
-# Appointment & Availability Endpoints
-@app.get("/api/availability", response_model=List[str], tags=["Appointments"])
-def get_availability(query_date: date, service_id: Optional[int] = None, doctor_id: Optional[int] = None, db: Session = Depends(get_db)):
-    # query = params.model_dump()
-    available_slots = crud.get_available_slots_for_day(db, day=query_date, service_id=service_id, doctor_id=doctor_id)
+@app.get("/api/availability", response_model=List[str])
+async def get_availability_slots(
+    query_date: date,
+    service_id: Optional[int] = Query(None),
+    doctor_id: Optional[int] = Query(None)
+):
+    # Basic mock availability logic
+    # In a real app, this would query the database and consider doctor schedules, holidays, etc.
+    if query_date < date.today():
+        return [] # No slots for past dates
+
+    # Example: Generate slots from 9 AM to 5 PM, 30-min intervals
+    available_slots = []
+    start_hour = 9
+    end_hour = 17 # 5 PM
+    current_time_obj = datetime.strptime(f"{start_hour}:00", "%H:%M").time()
+    end_time_obj = datetime.strptime(f"{end_hour}:00", "%H:%M").time()
+
+    while current_time_obj < end_time_obj:
+        slot_str = current_time_obj.strftime("%H:%M")
+        is_booked = False
+        for booking in BOOKINGS_DB:
+            # Check if this slot on this date is booked (optionally for specific doctor)
+            if booking["appointment_date"] == query_date.isoformat() and booking["appointment_time"] == slot_str:
+                if doctor_id and booking["doctor_id"] == doctor_id:
+                    is_booked = True
+                    break
+                elif not doctor_id: # General availability, if slot is booked by anyone
+                    # This logic might need refinement for service-specific or general slots
+                    is_booked = True 
+                    break
+        if not is_booked:
+            available_slots.append(slot_str)
+        
+        # Increment current_time_obj by 30 minutes
+        current_dt = datetime.combine(date.today(), current_time_obj)
+        current_dt = current_dt + timedelta(minutes=30)
+        current_time_obj = current_dt.time()
+
     return available_slots
 
-@app.post("/api/bookings", response_model=Booking, status_code=201, tags=["Appointments"])
-def create_new_booking(booking: BookingCreate, db: Session = Depends(get_db)):
-    # Basic validation: Check if slot is still available (could be more robust)
-    existing_bookings = crud.get_bookings_for_day(db, appointment_date=booking.appointment_date, doctor_id=booking.doctor_id)
-    for existing_booking in existing_bookings:
-        if existing_booking.appointment_time == booking.appointment_time:
-            raise HTTPException(status_code=400, detail="Selected time slot is no longer available.")
-    
-    # Check if doctor and service exist if IDs are provided
-    if booking.doctor_id and not crud.get_doctor(db, booking.doctor_id):
-        raise HTTPException(status_code=404, detail=f"Doctor with id {booking.doctor_id} not found.")
-    if booking.service_id and not crud.get_service(db, booking.service_id):
-        raise HTTPException(status_code=404, detail=f"Service with id {booking.service_id} not found.")
+@app.post("/api/bookings", response_model=BookingResponse, status_code=201)
+async def create_booking(booking: BookingCreate):
+    # Basic check for slot availability again (could be more robust)
+    for existing_booking in BOOKINGS_DB:
+        if (
+            existing_booking["appointment_date"] == booking.appointment_date.isoformat() and
+            existing_booking["appointment_time"] == booking.appointment_time.strftime("%H:%M") and
+            (not booking.doctor_id or existing_booking["doctor_id"] == booking.doctor_id)
+        ):
+            raise HTTPException(status_code=400, detail="Time slot no longer available. Please select another time.")
 
-    return crud.create_booking(db=db, booking=booking)
+    new_booking_id = max([b["booking_id"] for b in BOOKINGS_DB] + [0]) + 1
+    new_booking_data = booking.dict()
+    new_booking_data["booking_id"] = new_booking_id
+    new_booking_data["appointment_date"] = booking.appointment_date.isoformat()
+    new_booking_data["appointment_time"] = booking.appointment_time.strftime("%H:%M")
+    BOOKINGS_DB.append(new_booking_data)
+    response_data = {**new_booking_data, "status": "Confirmed"}
+    # Ensure response matches BookingResponse model if time needs to be converted back
+    # For this mock DB, we are storing time as string, so this is fine for now.
+    # If BookingResponse expects `time` object, conversion would be needed.
+    # BookingResponse inherits from BookingBase which has `appointment_time: time`
+    # This means the returned `appointment_time` should be a `time` object.
+    response_data["appointment_time"] = booking.appointment_time # Keep as time object for response
+    return response_data
 
-# Contact Form Endpoint
-@app.post("/api/contact", response_model=ContactMessage, status_code=201, tags=["Contact"])
-def submit_contact_form(message: ContactMessageCreate, db: Session = Depends(get_db)):
-    return crud.create_contact_message(db=db, contact_message=message)
+@app.post("/api/contact-submissions", response_model=ContactSubmissionResponse, status_code=201)
+async def submit_contact_message(submission: ContactSubmission):
+    new_submission_id = len(CONTACT_SUBMISSIONS_DB) + 1
+    submission_data = submission.dict()
+    submission_data["submission_id"] = new_submission_id
+    submission_data["submitted_at"] = datetime.utcnow()
+    CONTACT_SUBMISSIONS_DB.append(submission_data)
+    return submission_data
 
-# To run the app (example, usually done via uvicorn command):
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
+# --- Static Files Mounting (for serving the React frontend) ---
+# Get the directory of the current script (main.py)
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+# Construct the path to the frontend's build directory
+frontend_dist_path = os.path.join(backend_dir, "..", "frontend", "dist")
+
+# Check if the directory exists before mounting
+if os.path.exists(frontend_dist_path) and os.path.isdir(frontend_dist_path):
+    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="static-frontend")
+else:
+    print(f"WARNING: Frontend build directory not found at {frontend_dist_path}. Static file serving will be disabled.")
+    # Optionally, you could raise an error or have a fallback if serving frontend is critical
+    # For development, API might still be useful standalone.
+
+# --- Main entry point (for Uvicorn) ---
+if __name__ == "__main__":
+    import uvicorn
+    # This is for local development. For production, use a process manager like Gunicorn with Uvicorn workers.
+    uvicorn.run(app, host="0.0.0.0", port=9000) # Changed port to 9000

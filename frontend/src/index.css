@@ -3,114 +3,161 @@
 @tailwind utilities;
 
 body {
-  @apply font-sans text-clinic-text bg-clinic-background leading-relaxed antialiased;
+  @apply font-sans bg-clinic-bg-light text-clinic-text antialiased;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  @apply font-display text-clinic-primary mb-3 leading-tight;
-}
-
-h1 {
-  @apply text-4xl md:text-5xl;
-}
-
-h2 {
-  @apply text-3xl md:text-4xl;
-}
-
-h3 {
-  @apply text-2xl md:text-3xl;
-}
-
-h4 {
-  @apply text-xl md:text-2xl;
-}
-
-p {
-  @apply mb-4 text-clinic-text-light;
-}
-
-a {
-  @apply text-clinic-accent hover:text-clinic-accent-dark transition-colors duration-300;
-}
-
+/* Page structure & common elements */
 .container {
-  @apply w-11/12 max-w-6xl mx-auto px-4;
-}
-
-/* Base button styles - can be extended in components */
-.btn {
-  @apply inline-block py-3 px-7 text-base font-medium text-center rounded-lg cursor-pointer transition-all duration-300 ease-in-out no-underline;
-}
-
-.btn-primary {
-  @apply bg-clinic-primary text-white hover:bg-clinic-primary-dark hover:shadow-lg transform hover:-translate-y-0.5;
-}
-
-.btn-accent {
-  @apply bg-clinic-accent text-white hover:bg-clinic-accent-dark hover:shadow-lg transform hover:-translate-y-0.5;
-}
-
-.btn-outline-primary {
-  @apply bg-transparent text-clinic-primary border-2 border-clinic-primary hover:bg-clinic-primary hover:text-white;
-}
-
-.btn-outline-white {
-  @apply bg-transparent text-white border-2 border-white hover:bg-white hover:text-clinic-primary;
+  @apply mx-auto px-4 sm:px-6 lg:px-8;
 }
 
 .page-section {
-  @apply py-16;
+  @apply py-10 md:py-16;
 }
 
-.page-section.bg-light {
-  @apply bg-clinic-light-gray;
+.page-section.bg-clinic-bg-light {
+  @apply bg-clinic-bg-light; /* Corrected from clinic-light-gray */
 }
 
 .section-header {
-  @apply text-center mb-12;
+  @apply text-center mb-10 md:mb-12;
 }
 
 .section-header h2 {
-  @apply text-4xl mb-2;
+  @apply text-3xl md:text-4xl font-bold text-clinic-primary font-display;
 }
 
 .section-header .subtitle {
-  @apply text-lg text-clinic-text-light max-w-2xl mx-auto;
+  @apply text-lg text-neutral-medium mt-2 max-w-xl mx-auto;
 }
 
+/* Buttons */
+.btn {
+  @apply inline-block font-semibold rounded-md transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-opacity-50;
+  @apply px-6 py-3 text-base;
+}
+
+.btn-sm {
+  @apply px-4 py-2 text-sm;
+}
+
+.btn-lg {
+  @apply px-8 py-4 text-lg;
+}
+
+.btn-primary {
+  @apply bg-clinic-primary text-white hover:bg-clinic-primary-dark focus:ring-clinic-primary;
+}
+
+.btn-secondary {
+  @apply bg-secondary text-white hover:bg-secondary-dark focus:ring-secondary;
+}
+
+.btn-accent {
+  @apply bg-clinic-accent text-white hover:bg-clinic-accent-dark focus:ring-clinic-accent;
+}
+
+.btn-outline-primary {
+  @apply bg-transparent border-2 border-clinic-primary text-clinic-primary hover:bg-clinic-primary hover:text-white focus:ring-clinic-primary;
+}
+
+.btn-outline-white {
+  @apply bg-transparent border-2 border-white text-white hover:bg-white hover:text-clinic-primary focus:ring-white;
+}
+
+/* Cards */
 .card {
-  @apply bg-clinic-background rounded-lg shadow-custom-card overflow-hidden transition-transform duration-300 ease-in-out flex flex-col;
+  @apply bg-white rounded-lg overflow-hidden shadow-clinic-card hover:shadow-xl transition-shadow duration-300;
 }
 
-.card:hover {
-  @apply transform -translate-y-1 shadow-custom-card-hover;
-}
-
-.card-image img {
-  @apply w-full h-52 object-cover;
+.card-image {
+  @apply w-full h-48 object-cover;
 }
 
 .card-content {
-  @apply p-6 flex-grow flex flex-col;
+  @apply p-6;
 }
 
 .card-content h3 {
-  @apply mt-0 text-2xl;
+  @apply text-xl font-semibold text-clinic-primary mb-2 font-display;
 }
 
 .card-content p {
-  @apply text-sm flex-grow mb-4;
+  @apply text-sm text-neutral-medium leading-relaxed mb-4;
 }
 
 .card-actions {
-  @apply mt-auto pt-4;
+  @apply mt-auto pt-4 border-t border-neutral-extralight;
 }
 
 .card-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8;
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8;
 }
 
-*:focus-visible {
-  @apply outline-offset-2 outline-2 outline-clinic-accent;
+/* Forms - basic styling, can be extended */
+.form-group {
+  @apply mb-5;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-neutral-dark mb-1.5;
+}
+
+.form-control {
+  @apply block w-full px-4 py-2.5 text-base text-neutral-dark bg-white border border-neutral-light rounded-md shadow-sm placeholder-neutral-medium 
+  focus:outline-none focus:ring-2 focus:ring-clinic-primary focus:border-clinic-primary;
+}
+
+.form-control:disabled {
+    @apply bg-neutral-extralight cursor-not-allowed;
+}
+
+textarea.form-control {
+  @apply min-h-[100px];
+}
+
+/* Hero Sections */
+.page-hero {
+  @apply py-16 md:py-20;
+}
+
+.page-hero h1 {
+  @apply text-4xl md:text-5xl font-bold font-display;
+}
+
+.page-hero p {
+  @apply text-lg md:text-xl mt-4 max-w-2xl mx-auto opacity-90;
+}
+
+/* Breadcrumbs basic styling */
+.breadcrumbs {
+  @apply bg-neutral-extralight py-3;
+}
+
+.breadcrumbs ol {
+  @apply list-none p-0 inline-flex text-sm;
+}
+
+.breadcrumbs li a {
+  @apply text-clinic-primary hover:text-clinic-primary-dark;
+}
+
+.breadcrumbs li span {
+  @apply mx-2 text-neutral-medium;
+}
+
+/* Tailwind Prose Overrides (Optional - if using @tailwindcss/typography) */
+.prose {
+  /* Example: Ensure links in prose match clinic primary color */
+  /* prose-a:text-clinic-primary hover:prose-a:text-clinic-primary-dark; */
+}
+
+/* Define animate-fadeIn if it's going to be used */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
 }
