@@ -15,9 +15,9 @@ body {
   @apply py-10 md:py-16;
 }
 
-.page-section.bg-clinic-bg-light {
-  @apply bg-clinic-bg-light; /* Corrected from clinic-light-gray */
-}
+/* .page-section.bg-clinic-bg-light {  -- This rule was removed to fix circular dependency
+  @apply bg-clinic-bg-light;
+} */
 
 .section-header {
   @apply text-center mb-10 md:mb-12;
