@@ -9,6 +9,7 @@ export default {
       colors: {
         'primary': '#007BFF',       // Bright Blue
         'secondary': '#28A745',     // Success Green
+        'secondary-dark': '#218838', // Darker Success Green (Added)
         'accent': '#FFC107',        // Amber
         'neutral-dark': '#343A40',  // Dark Grey (Text)
         'neutral-medium': '#6C757D',// Medium Grey (Secondary Text/Icons)
