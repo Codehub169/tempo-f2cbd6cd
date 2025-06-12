@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPinIcon, PhoneIcon, EnvelopeIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { submitContactForm } from '../services/api'; // Import the API function
 
 const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -10,6 +11,8 @@ const ContactPage = () => {
     subject: '',
     message: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
 
   useEffect(() => {
     document.title = 'Contact Us - NayanJyoti Eye Clinic';
@@ -21,12 +24,20 @@ const ContactPage = () => {
     setFormData(prevData => ({ ...prevData, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // In a real application, you would send this data to a backend API
-    console.log('Form submitted:', formData);
-    alert('Thank you for your message! We will get back to you soon.');
-    setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+    setIsSubmitting(true);
+    setSubmitMessage('');
+    try {
+      const response = await submitContactForm(formData);
+      console.log('Form submitted successfully:', response);
+      setSubmitMessage('Thank you for your message! We will get back to you soon.');
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+    } catch (error) {
+      console.error('Failed to submit contact form:', error);
+      setSubmitMessage('Failed to send message. Please try again later.');
+    }
+    setIsSubmitting(false);
   };
 
   return (
@@ -122,8 +133,15 @@ const ContactPage = () => {
                   <textarea name="message" id="message" rows="5" value={formData.message} onChange={handleChange} className="form-control" required></textarea>
                 </div>
                 <div>
-                  <button type="submit" className="btn btn-primary w-full py-3">Send Message</button>
+                  <button type="submit" className="btn btn-primary w-full py-3" disabled={isSubmitting}>
+                    {isSubmitting ? 'Sending...' : 'Send Message'}
+                  </button>
                 </div>
+                {submitMessage && (
+                  <p className={`mt-4 text-sm ${submitMessage.includes('Failed') ? 'text-error' : 'text-secondary'}`}>
+                    {submitMessage}
+                  </p>
+                )}
               </form>
             </div>
           </div>
